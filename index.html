@@ -1,0 +1,318 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Swiffer</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:wght@400;700&family=Bricolage+Grotesque:opsz,wght@12..96,400;12..96,600;12..96,800&display=swap" rel="stylesheet">
+<style>
+:root {
+  --ground: #1b2129;
+  --panel: #232b35;
+  --line: #34404e;
+  --ink: #e9e6df;
+  --muted: #8f9bab;
+  --used: #4e5b6e;
+  --junk: #f2b33d;
+  --free: #7fd1b9;
+  --danger: #e8685a;
+  --display: "Bricolage Grotesque", system-ui, sans-serif;
+  --body: "Atkinson Hyperlegible", system-ui, sans-serif;
+}
+* { box-sizing: border-box; }
+body {
+  margin: 0; background: var(--ground); color: var(--ink);
+  font: 16px/1.5 var(--body); font-variant-numeric: tabular-nums;
+}
+main { max-width: 1120px; margin: 0 auto; padding: 48px 24px 96px; }
+h1, h2 { font-family: var(--display); margin: 0; letter-spacing: -0.02em; }
+h2 { font-size: 1.5rem; font-weight: 600; margin-bottom: 4px; }
+p { margin: 0; }
+.muted { color: var(--muted); }
+button {
+  font: 600 0.95rem var(--body); color: var(--ground); background: var(--ink);
+  border: 0; border-radius: 6px; padding: 10px 16px; cursor: pointer;
+}
+button.quiet { background: transparent; color: var(--ink); box-shadow: inset 0 0 0 1px var(--line); }
+button.go { background: var(--junk); }
+button.danger { background: var(--danger); }
+button:disabled { opacity: 0.45; cursor: not-allowed; }
+:focus-visible { outline: 2px solid var(--free); outline-offset: 3px; }
+
+/* hero */
+.hero { display: flex; justify-content: space-between; align-items: end; gap: 24px; flex-wrap: wrap; }
+.hero h1 { font-size: clamp(2.6rem, 7vw, 5.2rem); font-weight: 800; line-height: 0.95; }
+.hero h1 .n { color: var(--free); }
+.hero p { margin-top: 12px; font-size: 1.1rem; }
+
+/* the core: whole disk as one band of layers */
+.core {
+  display: flex; height: 120px; margin: 32px 0 12px; border-radius: 10px; overflow: hidden;
+  box-shadow: inset 0 0 0 1px var(--line);
+}
+.core > div { min-width: 0; transition: flex-basis 900ms cubic-bezier(.6,0,.2,1); }
+.core .used { background: var(--used); }
+.core .junk {
+  background: repeating-linear-gradient(-45deg, var(--junk) 0 6px, color-mix(in srgb, var(--junk) 35%, var(--ground)) 6px 12px);
+  border-left: 1px solid var(--ground);
+}
+.core .junk.root { background: repeating-linear-gradient(-45deg, #d8962a 0 6px, color-mix(in srgb, #d8962a 30%, var(--ground)) 6px 12px); }
+.core .free { background: var(--free); opacity: 0.9; }
+.legend { display: flex; gap: 20px; flex-wrap: wrap; color: var(--muted); font-size: 0.92rem; }
+.legend i { display: inline-block; width: 12px; height: 12px; border-radius: 3px; margin-right: 6px; vertical-align: -1px; }
+
+section { margin-top: 64px; }
+.grid { display: grid; grid-template-columns: 1.25fr 1fr; gap: 48px; }
+@media (max-width: 860px) { .grid { grid-template-columns: 1fr; } }
+
+/* history chart */
+.chart { margin-top: 16px; background: var(--panel); border-radius: 10px; padding: 16px; }
+.chart { position: relative; }
+.chart svg { display: block; width: 100%; height: 180px; }
+.chart .lbl { position: absolute; color: var(--muted); font-size: 0.8rem; }
+.chart.empty svg { display: none; }
+
+/* removable list */
+.rows { margin-top: 16px; border-top: 1px solid var(--line); }
+.row { display: grid; grid-template-columns: 24px 1fr auto; gap: 4px 14px; padding: 14px 0; border-bottom: 1px solid var(--line); cursor: pointer; }
+.row input { margin: 4px 0 0; width: 18px; height: 18px; accent-color: var(--junk); }
+.row b { font-weight: 700; }
+.row .size { font-family: var(--display); font-weight: 600; font-size: 1.15rem; text-align: right; }
+.row .desc { grid-column: 2 / 4; color: var(--muted); font-size: 0.9rem; }
+.row .bar { grid-column: 2 / 4; height: 6px; border-radius: 3px; background: var(--line); }
+.row .bar span { display: block; height: 100%; border-radius: 3px; background: var(--junk); transition: width 900ms cubic-bezier(.6,0,.2,1); }
+.tag { font-size: 0.78rem; color: var(--junk); margin-left: 8px; white-space: nowrap; }
+.actions { display: flex; gap: 12px; margin-top: 20px; flex-wrap: wrap; align-items: center; }
+pre.log {
+  margin: 16px 0 0; padding: 14px; background: var(--panel); border-radius: 8px; max-height: 240px; overflow: auto;
+  font-size: 0.82rem; color: var(--muted); white-space: pre-wrap;
+}
+pre.log:empty { display: none; }
+
+/* biggest things */
+.hbars { margin-top: 16px; display: grid; gap: 10px; }
+.hbar { display: grid; grid-template-columns: 1fr auto; gap: 2px 12px; font-size: 0.92rem; }
+.hbar .p { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.hbar .p span { color: var(--muted); margin-left: 6px; }
+.hbar .s { color: var(--muted); }
+.hbar .b { grid-column: 1 / 3; height: 8px; background: var(--panel); border-radius: 4px; }
+.hbar .b span { display: block; height: 100%; border-radius: 4px; background: var(--used); }
+.hbar:first-child .b span { background: var(--ink); }
+h3 { font: 600 1.05rem var(--display); margin: 32px 0 0; }
+
+/* snapshots */
+table { width: 100%; border-collapse: collapse; margin-top: 16px; font-size: 0.92rem; }
+td, th { text-align: left; padding: 10px 8px; border-bottom: 1px solid var(--line); }
+th { color: var(--muted); font-weight: 400; }
+tr.old td { color: var(--junk); }
+td:nth-child(3) { white-space: nowrap; }
+.alert {
+  display: flex; gap: 16px; align-items: center; justify-content: space-between; flex-wrap: wrap;
+  margin-top: 28px; padding: 16px 20px; border-radius: 10px;
+  background: color-mix(in srgb, var(--junk) 12%, var(--ground)); box-shadow: inset 4px 0 0 var(--junk);
+}
+.alert[hidden] { display: none; }
+.alert b { font-family: var(--display); font-size: 1.1rem; }
+.alert a { color: var(--ink); font-weight: 700; }
+.wait { color: var(--muted); margin-top: 16px; }
+
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+</style>
+</head>
+<body>
+<main>
+  <div class="hero">
+    <div>
+      <h1 id="headline">Reading your disk…</h1>
+      <p class="muted" id="sub">&nbsp;</p>
+    </div>
+    <button class="quiet" id="rescan">Rescan</button>
+  </div>
+
+  <div class="core" id="core" role="img" aria-label="Disk usage"></div>
+  <div class="legend">
+    <span><i style="background:var(--used)"></i>Used</span>
+    <span><i style="background:repeating-linear-gradient(-45deg,var(--junk) 0 3px,#5a4a2a 3px 6px)"></i><span id="canfree">You can free</span></span>
+    <span><i style="background:var(--free)"></i>Free</span>
+  </div>
+
+  <div class="alert" id="snapalert" role="status" hidden></div>
+
+  <section>
+    <h2>Free space over time</h2>
+    <p class="muted">A point is saved each time you open or rescan this page.</p>
+    <div class="chart" id="chart"><svg id="hist" viewBox="0 0 1000 180" preserveAspectRatio="none"></svg><span id="hilbl" class="lbl" style="top:12px;left:16px"></span><span id="lolbl" class="lbl" style="bottom:12px;left:16px"></span><span id="tlbl" class="lbl" style="top:12px;right:16px"></span></div>
+  </section>
+
+  <section class="grid">
+    <div>
+      <h2>Space you can free</h2>
+      <p class="muted">Items marked “asks for password” run together under one prompt.</p>
+      <div class="rows" id="junk"><p class="wait">Measuring caches…</p></div>
+      <div class="actions">
+        <button class="go" id="clean" disabled>Free selected</button>
+        <button class="quiet" id="all">Select all</button>
+      </div>
+      <pre class="log" id="cleanlog"></pre>
+    </div>
+    <div>
+      <h2>What takes the most space</h2>
+      <p class="muted">Folders in your home and files over 200 MB.</p>
+      <div class="hbars" id="dirs"><p class="wait">Scanning your home folder, this can take a minute…</p></div>
+      <h3>Biggest files</h3>
+      <div class="hbars" id="files"></div>
+    </div>
+  </section>
+
+  <section id="snapshots">
+    <h2>System snapshots</h2>
+    <p class="muted">Old snapshots keep deleted system files on disk. Snapper rotates scheduled and install snapshots on its own; ones it won't clean up are highlighted and preselected.</p>
+    <div id="snaps"><p class="wait">Reading snapshots…</p></div>
+    <div class="actions"><button class="danger" id="snapdel" disabled>Delete selected</button></div>
+    <pre class="log" id="snaplog"></pre>
+  </section>
+</main>
+
+<script>
+const $ = id => document.getElementById(id);
+const GB = b => b == null ? "?" : b >= 2 ** 30 ? (b / 2 ** 30).toFixed(1) + " GB" : Math.round(b / 2 ** 20) + " MB";
+const esc = s => String(s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]);
+const get = p => fetch(p).then(r => r.json());
+const post = (p, body) => fetch(p, { method: "POST", headers: { "X-Swiffer": "1", "Content-Type": "application/json" }, body: JSON.stringify(body) }).then(r => r.json());
+
+let D, J = [];
+
+function drawCore() {
+  if (!D) return;
+  const junkTotal = J.reduce((a, j) => a + (j.size || 0), 0);
+  const pct = b => (100 * b / D.total) + "%";
+  $("core").innerHTML =
+    `<div class="used" style="flex-basis:${pct(Math.max(0, D.used - junkTotal))}" title="Used ${GB(D.used - junkTotal)}"></div>` +
+    J.filter(j => j.size).map(j => `<div class="junk ${j.root ? "root" : ""}" data-id="${j.id}" style="flex-basis:${pct(j.size)}" title="${esc(j.label)}: ${GB(j.size)}"></div>`).join("") +
+    `<div class="free" style="flex-grow:1" title="Free ${GB(D.free)}"></div>`;
+  $("canfree").textContent = J.length ? `You can free ${GB(junkTotal)}` : "You can free";
+  $("core").setAttribute("aria-label", `${GB(D.used)} used, ${GB(junkTotal)} of it can be freed, ${GB(D.free)} free`);
+}
+
+function drawHistory(h) {
+  const svg = $("hist");
+  $("chart").classList.toggle("empty", h.length < 2);
+  if (h.length < 2) {
+    $("hilbl").textContent = `Only one reading so far: ${GB(h[0]?.free)} free. Come back later to see the trend.`;
+    $("lolbl").textContent = $("tlbl").textContent = "";
+    return;
+  }
+  const W = 1000, H = 180, pad = 24;
+  const t0 = h[0].t, t1 = h.at(-1).t, vs = h.map(p => p.free);
+  let lo = Math.min(...vs), hi = Math.max(...vs);
+  if (hi - lo < 2 ** 30) { lo -= 2 ** 29; hi += 2 ** 29; }
+  const x = t => ((t - t0) / (t1 - t0 || 1)) * W, y = v => pad + (1 - (v - lo) / (hi - lo)) * (H - 2 * pad);
+  const line = h.map((p, i) => `${i ? "L" : "M"}${x(p.t).toFixed(1)},${y(p.free).toFixed(1)}`).join("");
+  const day = t => new Date(t * 1000).toLocaleDateString(undefined, { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" });
+  svg.innerHTML = `
+    <path d="${line}L${W},${H}L0,${H}Z" fill="var(--free)" opacity=".12"/>
+    <path d="${line}" fill="none" stroke="var(--free)" stroke-width="2.5" vector-effect="non-scaling-stroke"/>`;
+  $("hilbl").textContent = GB(hi); $("lolbl").textContent = GB(lo); $("tlbl").textContent = `${day(t0)} to ${day(t1)}`;
+}
+
+function drawJunk() {
+  if (!J.length) { $("junk").innerHTML = `<p class="wait">Nothing worth cleaning right now.</p>`; return; }
+  const max = Math.max(...J.map(j => j.size || 0));
+  $("junk").innerHTML = J.map(j => `
+    <label class="row">
+      <input type="checkbox" value="${j.id}">
+      <span><b>${esc(j.label)}</b>${j.root ? `<span class="tag">asks for password</span>` : ""}</span>
+      <span class="size">${GB(j.size)}</span>
+      <span class="desc">${esc(j.desc)}</span>
+      <span class="bar"><span style="width:${j.size ? 100 * j.size / max : 0}%"></span></span>
+    </label>`).join("");
+  $("junk").querySelectorAll("input").forEach(i => i.onchange = updateCleanBtn);
+  updateCleanBtn();
+}
+
+function selected() { return [...$("junk").querySelectorAll("input:checked")].map(i => i.value); }
+function updateCleanBtn() {
+  const ids = selected(), sum = J.filter(j => ids.includes(j.id)).reduce((a, j) => a + (j.size || 0), 0);
+  $("clean").disabled = !ids.length;
+  $("clean").textContent = ids.length ? `Free ${GB(sum)}` : "Free selected";
+}
+
+function hbars(el, items) {
+  if (!items.length) { el.innerHTML = `<p class="wait">None found.</p>`; return; }
+  const max = items[0].size;
+  el.innerHTML = items.map(i => `
+    <div class="hbar"><span class="p" title="${esc(i.path)}">${esc(i.path.split("/").pop())}<span>${esc(i.path.split("/").slice(0, -1).join("/"))}</span></span><span class="s">${GB(i.size)}</span>
+    <span class="b"><span style="width:${100 * i.size / max}%"></span></span></div>`).join("");
+}
+
+async function loadAll() {
+  $("rescan").disabled = true;
+  D = await get("/api/disk");
+  $("headline").innerHTML = `You have <span class="n">${GB(D.free)}</span> free.`;
+  $("sub").textContent = `${GB(D.used)} used of ${GB(D.total)} on your system drive (${Math.round(100 * D.used / D.total)}% full).`;
+  drawHistory(D.history);
+  drawCore();
+  J = await get("/api/junk");
+  drawJunk(); drawCore();
+  $("rescan").disabled = false;
+  const H = await get("/api/heavy");
+  hbars($("dirs"), H.dirs); hbars($("files"), H.files);
+}
+
+$("rescan").onclick = () => { $("dirs").innerHTML = `<p class="wait">Scanning your home folder…</p>`; $("files").innerHTML = ""; loadAll(); };
+$("all").onclick = () => { $("junk").querySelectorAll("input").forEach(i => i.checked = true); updateCleanBtn(); };
+
+$("clean").onclick = async () => {
+  const ids = selected();
+  $("clean").disabled = true; $("clean").textContent = "Cleaning…";
+  $("cleanlog").textContent = "Working. If a password prompt appears, it's for the items marked “asks for password”.";
+  const r = await post("/api/clean", { ids });
+  $("cleanlog").textContent = r.log || "Done.";
+  const before = D.free;
+  // collapse the hatched layers first, then re-measure for real numbers
+  ids.forEach(id => { const s = $("core").querySelector(`[data-id="${id}"]`); if (s) s.style.flexBasis = "0%"; });
+  D = await get("/api/disk");
+  $("headline").innerHTML = `You have <span class="n">${GB(D.free)}</span> free.`;
+  $("cleanlog").textContent += `\n\nFreed ${GB(Math.max(0, D.free - before))}.`;
+  drawHistory(D.history);
+  setTimeout(async () => { J = await get("/api/junk"); drawJunk(); drawCore(); }, 950);
+};
+
+async function loadSnaps() {
+  const r = await get("/api/snapshots");
+  if (r.error) { $("snaps").innerHTML = `<p class="wait">${esc(r.error)}</p>`; $("snapdel").hidden = true; return; }
+  const snaps = r.snapshots, flagged = snaps.filter(s => s.why);
+  const when = d => new Date(d).toLocaleString(undefined, { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" });
+  const kind = s => s.type === "single" ? (s.cleanup === "timeline" ? "Scheduled" : s.cleanup || "Manual") : `Package install (${s.type})`;
+
+  $("snapalert").hidden = !flagged.length;
+  $("snapalert").innerHTML = flagged.length === 1
+    ? `<span><b>Snapshot ${flagged[0].number} should be deleted.</b><br><span class="muted">${esc(flagged[0].why)}: ${esc(flagged[0].description)}</span></span><a href="#snapshots">Review snapshots</a>`
+    : `<span><b>${flagged.length} snapshots should be deleted.</b><br><span class="muted">${flagged.map(s => `${s.number} (${esc(s.why.toLowerCase())})`).join(", ")}</span></span><a href="#snapshots">Review snapshots</a>`;
+
+  if (!snaps.length) { $("snaps").innerHTML = `<p class="wait">No snapshots.</p>`; $("snapdel").hidden = true; return; }
+  $("snaps").innerHTML = (flagged.length ? "" : `<p class="wait">Nothing to delete. Snapper is keeping these tidy on its own.</p>`) +
+    `<table><thead><tr><th></th><th>#</th><th>Date</th><th>Kind</th><th>Description</th><th>Why delete</th></tr></thead><tbody>` +
+    snaps.map(s => `<tr class="${s.why ? "old" : ""}"><td><input type="checkbox" value="${s.number}" ${s.why ? "checked" : ""} aria-label="Select snapshot ${s.number}"></td>
+      <td>${s.number}</td><td>${when(s.date)}</td><td>${esc(kind(s))}</td><td>${esc(s.description)}</td><td>${esc(s.why || "")}</td></tr>`).join("") +
+    `</tbody></table>`;
+  const upd = () => { const n = $("snaps").querySelectorAll("input:checked").length; $("snapdel").disabled = !n; $("snapdel").textContent = n ? `Delete ${n} snapshot${n > 1 ? "s" : ""}` : "Delete selected"; };
+  $("snaps").querySelectorAll("input").forEach(i => i.onchange = upd); upd();
+}
+
+$("snapdel").onclick = async () => {
+  const numbers = [...$("snaps").querySelectorAll("input:checked")].map(i => +i.value);
+  if (!confirm(`Delete snapshots ${numbers.join(", ")}? You won't be able to roll back to them.`)) return;
+  $("snaplog").textContent = "Deleting… btrfs frees the space over the next minute or two.";
+  const r = await post("/api/snapshots/delete", { numbers });
+  $("snaplog").textContent = r.log;
+  loadSnaps();
+  setTimeout(loadAll, 60000);
+};
+
+loadAll();
+loadSnaps();
+</script>
+</body>
+</html>
