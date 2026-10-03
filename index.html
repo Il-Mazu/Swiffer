@@ -148,7 +148,7 @@ td:nth-child(3) { white-space: nowrap; }
   <section class="grid">
     <div>
       <h2>Space you can free</h2>
-      <p class="muted">Items marked “asks for password” run together under one prompt.</p>
+      <p class="muted">Items marked “needs admin” run together under one prompt.</p>
       <div class="rows" id="junk"><p class="wait">Measuring caches…</p></div>
       <div class="actions">
         <button class="go" id="clean" disabled>Free selected</button>
@@ -222,7 +222,7 @@ function drawJunk() {
   $("junk").innerHTML = J.map(j => `
     <label class="row">
       <input type="checkbox" value="${j.id}">
-      <span><b>${esc(j.label)}</b>${j.root ? `<span class="tag">asks for password</span>` : ""}</span>
+      <span><b>${esc(j.label)}</b>${j.root ? `<span class="tag">needs admin</span>` : ""}</span>
       <span class="size">${GB(j.size)}</span>
       <span class="desc">${esc(j.desc)}</span>
       <span class="bar"><span style="width:${j.size ? 100 * j.size / max : 0}%"></span></span>
@@ -266,7 +266,7 @@ $("all").onclick = () => { $("junk").querySelectorAll("input").forEach(i => i.ch
 $("clean").onclick = async () => {
   const ids = selected();
   $("clean").disabled = true; $("clean").textContent = "Cleaning…";
-  $("cleanlog").textContent = "Working. If a password prompt appears, it's for the items marked “asks for password”.";
+  $("cleanlog").textContent = "Working. If an admin prompt appears, it's for the items marked “needs admin”.";
   const r = await post("/api/clean", { ids });
   $("cleanlog").textContent = r.log || "Done.";
   const before = D.free;
@@ -281,6 +281,7 @@ $("clean").onclick = async () => {
 
 async function loadSnaps() {
   const r = await get("/api/snapshots");
+  if (r.unavailable) { $("snapshots").hidden = true; return; }
   if (r.error) { $("snaps").innerHTML = `<p class="wait">${esc(r.error)}</p>`; $("snapdel").hidden = true; return; }
   const snaps = r.snapshots, flagged = snaps.filter(s => s.why);
   const when = d => new Date(d).toLocaleString(undefined, { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" });

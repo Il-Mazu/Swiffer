@@ -15,3 +15,18 @@ assert why_delete(snap("single", "", 1), now).startswith("Manual")
 assert why_delete(snap("single", "timeline", 45), now) == "45 days old"
 assert why_delete(snap("pre", "number", 2), now) is None
 print("ok")
+
+import os, tempfile
+from server import walk
+
+with tempfile.TemporaryDirectory() as d:
+    os.makedirs(f"{d}/a/b")
+    open(f"{d}/a/b/f", "wb").write(b"x" * 300)
+    open(f"{d}/top", "wb").write(b"x" * 50)
+    os.link(f"{d}/a/b/f", f"{d}/a/hard")  # counted once
+    os.symlink(f"{d}/a", f"{d}/link")  # skipped
+    total, sizes, files = walk(d, depth=1, big=100)
+    assert total == 350, total
+    assert sizes == {d: 350, f"{d}/a": 300}, sizes  # a/b rolls up into a
+    assert len(files) == 1 and files[0][0] == 300, files
+print("ok")
